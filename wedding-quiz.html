@@ -1,0 +1,1674 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>婚礼趣味答题</title>
+<style>
+/* ==================== Reset & Base ==================== */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:'PingFang SC','Microsoft YaHei','Hiragino Sans GB','Helvetica Neue',Arial,sans-serif;
+  min-height:100vh;
+  overflow-x:hidden;
+  color:#2d2d44;
+  background:linear-gradient(-45deg,#ffecd2,#fcb69f,#ff9a9e,#fecfef);
+  background-size:400% 400%;
+  animation:gradientShift 15s ease infinite;
+}
+@keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
+/* ==================== Variables ==================== */
+:root{
+  --pink:#FF6B9D;
+  --coral:#FF8C42;
+  --yellow:#FFD93D;
+  --green:#6BCB77;
+  --teal:#4ECDC4;
+  --purple:#A06CD5;
+  --blue:#4D96FF;
+  --dark:#2d2d44;
+  --white:#fff;
+  --shadow:0 8px 32px rgba(0,0,0,.12);
+  --shadow-lg:0 16px 48px rgba(0,0,0,.18);
+  --radius:20px;
+  --radius-sm:12px;
+}
+
+/* ==================== Background Decorations ==================== */
+.bg-balloons{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.bg-balloons span{
+  position:absolute;
+  bottom:-120px;
+  width:55px;height:68px;
+  border-radius:50% 50% 50% 50% /45% 45% 55% 55%;
+  opacity:.35;
+  animation:floatUp linear infinite;
+}
+.bg-balloons span::after{
+  content:'';position:absolute;bottom:-40px;left:50%;
+  width:2px;height:40px;
+  background:rgba(255,255,255,.4);
+  transform:translateX(-50%);
+}
+.bg-balloons span:nth-child(1){left:5%;background:var(--pink);animation-duration:18s;animation-delay:0s}
+.bg-balloons span:nth-child(2){left:15%;background:var(--teal);animation-duration:22s;animation-delay:2s}
+.bg-balloons span:nth-child(3){left:30%;background:var(--yellow);animation-duration:20s;animation-delay:4s;width:40px;height:50px}
+.bg-balloons span:nth-child(4){left:45%;background:var(--purple);animation-duration:25s;animation-delay:1s}
+.bg-balloons span:nth-child(5){left:60%;background:var(--coral);animation-duration:19s;animation-delay:3s;width:48px;height:60px}
+.bg-balloons span:nth-child(6){left:75%;background:var(--green);animation-duration:23s;animation-delay:5s}
+.bg-balloons span:nth-child(7){left:85%;background:var(--blue);animation-duration:21s;animation-delay:2.5s;width:42px;height:52px}
+.bg-balloons span:nth-child(8){left:92%;background:var(--pink);animation-duration:17s;animation-delay:6s}
+@keyframes floatUp{
+  0%{transform:translateY(0) rotate(0deg);opacity:.35}
+  80%{opacity:.25}
+  100%{transform:translateY(-110vh) rotate(360deg);opacity:0}
+}
+
+/* ==================== Connection Status ==================== */
+.conn-badge{
+  position:fixed;top:12px;right:12px;
+  display:flex;align-items:center;gap:6px;
+  background:rgba(255,255,255,.95);
+  padding:6px 14px;border-radius:50px;
+  box-shadow:0 2px 8px rgba(0,0,0,.1);
+  font-size:.78rem;font-weight:600;
+  z-index:9998;
+}
+.conn-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.conn-dot.connected{background:var(--green)}
+.conn-dot.connecting{background:var(--yellow);animation:pulse 1s infinite}
+.conn-dot.disconnected{background:#ff4444}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.3);opacity:.6}}
+
+/* ==================== Screens ==================== */
+.screen{display:none;min-height:100vh;position:relative;z-index:1;animation:screenIn .5s ease}
+.screen.active{display:block}
+@keyframes screenIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+/* ==================== Common Elements ==================== */
+.btn{
+  border:none;cursor:pointer;
+  font-family:inherit;font-weight:700;font-size:1.1rem;
+  padding:14px 36px;border-radius:50px;
+  transition:all .25s ease;
+  position:relative;overflow:hidden;
+}
+.btn:active{transform:scale(.95)}
+.btn-primary{
+  background:linear-gradient(135deg,var(--pink),var(--coral));
+  color:#fff;
+  box-shadow:0 6px 20px rgba(255,107,157,.45);
+}
+.btn-primary:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 10px 30px rgba(255,107,157,.55)}
+.btn-secondary{
+  background:linear-gradient(135deg,var(--teal),var(--blue));
+  color:#fff;
+  box-shadow:0 6px 20px rgba(78,205,196,.4);
+}
+.btn-secondary:hover{transform:translateY(-2px) scale(1.03)}
+.btn-large{font-size:1.3rem;padding:18px 48px}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
+
+/* ==================== Host - Lobby ==================== */
+#host-lobby{display:flex;align-items:center;justify-content:center;padding:24px}
+#host-lobby.active{display:flex}
+.lobby-card{
+  max-width:800px;width:100%;
+  background:rgba(255,255,255,.95);
+  backdrop-filter:blur(10px);
+  border-radius:30px;
+  box-shadow:var(--shadow-lg);
+  padding:40px;
+  text-align:center;
+}
+.lobby-title{
+  font-weight:900;
+  font-size:clamp(2rem,5vw,3.5rem);
+  background:linear-gradient(135deg,var(--pink),var(--purple));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+  margin-bottom:8px;
+}
+.lobby-subtitle{font-size:clamp(1rem,2.5vw,1.4rem);color:#666;margin-bottom:28px}
+.qr-section{
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+  margin-bottom:24px;
+}
+.qr-section img,.qr-section canvas{
+  width:clamp(180px,30vw,260px)!important;
+  height:clamp(180px,30vw,260px)!important;
+  border-radius:16px;
+  border:4px solid var(--white);
+  box-shadow:0 8px 24px rgba(0,0,0,.15);
+}
+.qr-section img{object-fit:contain}
+#qr-code-container{display:flex;justify-content:center;min-height:200px;align-items:center}
+#qr-fallback{
+  background:rgba(0,0,0,.05);
+  border-radius:12px;padding:16px;
+  word-break:break-all;
+  font-family:monospace;font-size:.85rem;
+  color:#555;
+}
+.qr-hint{font-size:.95rem;color:#888}
+.room-code-display{
+  display:inline-flex;align-items:center;gap:6px;
+  background:rgba(160,108,213,.12);
+  padding:8px 20px;border-radius:50px;
+  margin-bottom:16px;font-weight:700;
+}
+.room-code-display .code{
+  font-size:1.4rem;letter-spacing:4px;
+  color:var(--purple);font-weight:900;
+}
+.player-count-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  background:linear-gradient(135deg,var(--green),var(--teal));
+  color:#fff;font-weight:700;font-size:1.2rem;
+  padding:10px 24px;border-radius:50px;
+  margin-bottom:20px;
+  box-shadow:0 4px 16px rgba(107,203,119,.4);
+}
+.player-list{
+  max-height:200px;overflow-y:auto;
+  display:flex;flex-wrap:wrap;gap:8px;justify-content:center;
+  margin-bottom:28px;padding:12px;
+  background:rgba(0,0,0,.03);border-radius:16px;
+}
+.player-list:empty::before{
+  content:'等待来宾扫码加入...';
+  color:#aaa;font-size:.9rem;
+}
+.player-chip{
+  background:linear-gradient(135deg,var(--yellow),var(--coral));
+  color:#fff;font-weight:600;font-size:.9rem;
+  padding:6px 16px;border-radius:50px;
+  animation:chipIn .3s ease;
+}
+@keyframes chipIn{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:scale(1)}}
+
+/* ==================== Host - Question ==================== */
+#host-question{padding:24px}
+.host-top-bar{
+  display:flex;justify-content:space-between;align-items:center;
+  flex-wrap:wrap;gap:12px;
+  max-width:900px;margin:0 auto 20px;
+}
+.top-bar-item{
+  display:flex;align-items:center;gap:8px;
+  background:rgba(255,255,255,.95);
+  padding:10px 20px;border-radius:50px;
+  box-shadow:var(--shadow);
+  font-weight:700;font-size:1.1rem;
+}
+.timer-display{
+  font-weight:900;
+  font-size:1.3rem;
+  background:linear-gradient(135deg,var(--coral),var(--pink));
+  color:#fff;
+}
+.timer-display.warning{
+  background:linear-gradient(135deg,#ff4444,#ff6666);
+  animation:timerPulse .5s ease infinite;
+}
+@keyframes timerPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+
+.question-card{
+  max-width:900px;margin:0 auto 24px;
+  background:rgba(255,255,255,.95);
+  backdrop-filter:blur(10px);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow-lg);
+  padding:32px;
+}
+.question-number{
+  font-size:1rem;color:var(--purple);
+  font-weight:700;margin-bottom:12px;
+}
+.question-text{
+  font-size:clamp(1.3rem,3.5vw,2rem);
+  font-weight:700;line-height:1.4;
+  margin-bottom:24px;
+}
+.options-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+}
+.option-box{
+  display:flex;align-items:center;gap:12px;
+  padding:18px 20px;
+  border-radius:var(--radius-sm);
+  font-size:1.1rem;font-weight:600;
+  cursor:default;
+  transition:all .3s ease;
+  position:relative;
+}
+.option-box .opt-letter{
+  display:flex;align-items:center;justify-content:center;
+  width:36px;height:36px;border-radius:50%;
+  font-weight:700;flex-shrink:0;color:#fff;
+}
+.option-a{background:linear-gradient(135deg,#FFF5E6,#FFE0B2);border:2px solid #FFE0B2}
+.option-a .opt-letter{background:#FFB74D}
+.option-b{background:linear-gradient(135deg,#E3F2FD,#BBDEFB);border:2px solid #BBDEFB}
+.option-b .opt-letter{background:#42A5F5}
+.option-c{background:linear-gradient(135deg,#E8F5E9,#C8E6C9);border:2px solid #C8E6C9}
+.option-c .opt-letter{background:#66BB6A}
+.option-d{background:linear-gradient(135deg,#F3E5F5,#E1BEE7);border:2px solid #E1BEE7}
+.option-d .opt-letter{background:#AB47BC}
+.option-box.correct{
+  border:3px solid var(--green)!important;
+  box-shadow:0 0 20px rgba(107,203,119,.5);
+  animation:correctPulse .6s ease;
+}
+@keyframes correctPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+.option-box.correct::after{
+  content:'✓';position:absolute;top:8px;right:12px;
+  font-size:1.4rem;color:var(--green);font-weight:900;
+}
+
+.host-leaderboard{max-width:900px;margin:0 auto 24px}
+.leaderboard-title{
+  font-size:1.2rem;font-weight:700;
+  text-align:center;margin-bottom:12px;color:var(--dark);
+}
+.leaderboard-list{
+  display:flex;flex-direction:column;gap:6px;
+  max-height:280px;overflow-y:auto;
+}
+.lb-item{
+  display:flex;align-items:center;gap:12px;
+  background:rgba(255,255,255,.9);
+  padding:10px 16px;border-radius:var(--radius-sm);
+  box-shadow:0 2px 8px rgba(0,0,0,.06);
+  transition:transform .3s ease;
+}
+.lb-rank{
+  display:flex;align-items:center;justify-content:center;
+  width:32px;height:32px;border-radius:50%;
+  font-weight:700;flex-shrink:0;font-size:.9rem;color:#fff;
+}
+.lb-rank-1{background:linear-gradient(135deg,#FFD700,#FFA000)}
+.lb-rank-2{background:linear-gradient(135deg,#E0E0E0,#9E9E9E)}
+.lb-rank-3{background:linear-gradient(135deg,#D7A86E,#A0613E)}
+.lb-rank-other{background:linear-gradient(135deg,var(--teal),var(--blue))}
+.lb-name{flex:1;font-weight:600;font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lb-score{font-weight:900;color:var(--pink);font-size:1.1rem}
+
+.host-controls{display:flex;justify-content:center;gap:16px;max-width:900px;margin:0 auto}
+
+/* ==================== Host - Reveal ==================== */
+#host-reveal .question-card{position:relative}
+.reveal-badge{
+  position:absolute;top:-12px;left:50%;transform:translateX(-50%);
+  background:linear-gradient(135deg,var(--green),var(--teal));
+  color:#fff;font-weight:700;
+  padding:6px 24px;border-radius:50px;font-size:1rem;
+  box-shadow:0 4px 16px rgba(107,203,119,.4);
+}
+.answer-stats{
+  display:flex;justify-content:center;gap:20px;flex-wrap:wrap;
+  margin-top:16px;
+}
+.stat-item{
+  background:rgba(0,0,0,.04);
+  padding:8px 20px;border-radius:50px;
+  font-weight:600;font-size:.95rem;
+}
+.stat-item .stat-num{font-weight:900;color:var(--pink);font-size:1.2rem}
+
+/* ==================== Host - Final ==================== */
+#host-final{display:flex;align-items:center;justify-content:center;padding:24px}
+#host-final.active{display:flex}
+.final-container{max-width:700px;width:100%;text-align:center}
+.final-title{
+  font-size:clamp(2rem,5vw,3rem);
+  font-weight:900;
+  background:linear-gradient(135deg,var(--pink),var(--purple));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+  margin-bottom:32px;
+}
+.winner-card{
+  background:rgba(255,255,255,.95);
+  backdrop-filter:blur(10px);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow-lg);
+  padding:24px 32px;
+  margin-bottom:16px;
+  display:flex;align-items:center;gap:20px;
+  animation:winnerIn .6s ease backwards;
+}
+.winner-card:nth-child(1){animation-delay:.1s}
+.winner-card:nth-child(2){animation-delay:.3s}
+.winner-card:nth-child(3){animation-delay:.5s}
+@keyframes winnerIn{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:translateX(0)}}
+.winner-medal{font-size:3rem;flex-shrink:0}
+.winner-info{text-align:left;flex:1}
+.winner-name{font-size:1.5rem;font-weight:700}
+.winner-score{font-size:1.1rem;color:var(--pink);font-weight:700}
+.winner-card.rank-1{
+  background:linear-gradient(135deg,rgba(255,215,0,.15),rgba(255,165,0,.1));
+  border:2px solid rgba(255,215,0,.4);
+  transform:scale(1.05);
+}
+.winner-card.rank-2{
+  background:linear-gradient(135deg,rgba(192,192,192,.12),rgba(150,150,150,.08));
+  border:2px solid rgba(192,192,192,.3);
+}
+.winner-card.rank-3{
+  background:linear-gradient(135deg,rgba(205,127,50,.12),rgba(160,97,62,.08));
+  border:2px solid rgba(205,127,50,.3);
+}
+
+/* ==================== Guest Screens ==================== */
+.guest-screen{
+  display:none;min-height:100vh;
+  align-items:center;justify-content:center;
+  padding:20px;position:relative;z-index:1;
+}
+.guest-screen.active{display:flex}
+.guest-card{
+  width:100%;max-width:420px;
+  background:rgba(255,255,255,.95);
+  backdrop-filter:blur(10px);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow-lg);
+  padding:28px 24px;
+  text-align:center;
+  animation:screenIn .5s ease;
+}
+.guest-emoji{font-size:3.5rem;margin-bottom:12px}
+.guest-title{font-size:1.6rem;font-weight:700;margin-bottom:8px}
+.guest-subtitle{font-size:.95rem;color:#888;margin-bottom:20px}
+.input-field{
+  width:100%;padding:14px 18px;
+  border:2px solid #e0e0e0;border-radius:var(--radius-sm);
+  font-size:1.1rem;font-family:inherit;
+  transition:border-color .3s ease;
+  margin-bottom:16px;outline:none;
+}
+.input-field:focus{border-color:var(--pink)}
+
+/* Guest - Question */
+.guest-top-info{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.guest-q-num{font-weight:700;color:var(--purple);font-size:1rem}
+.guest-timer{
+  font-weight:900;
+  background:linear-gradient(135deg,var(--coral),var(--pink));
+  color:#fff;padding:6px 16px;border-radius:50px;font-size:1rem;
+}
+.guest-timer.warning{
+  background:linear-gradient(135deg,#ff4444,#ff6666);
+  animation:timerPulse .5s ease infinite;
+}
+.guest-question-text{font-size:1.2rem;font-weight:700;line-height:1.4;margin-bottom:20px;text-align:left}
+.guest-options{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.guest-option{
+  display:flex;align-items:center;gap:12px;
+  padding:14px 16px;border-radius:var(--radius-sm);
+  font-size:1rem;font-weight:600;cursor:pointer;
+  transition:all .25s ease;
+  border:2px solid transparent;
+  user-select:none;
+}
+.guest-option:active{transform:scale(.97)}
+.guest-option .opt-letter{
+  display:flex;align-items:center;justify-content:center;
+  width:32px;height:32px;border-radius:50%;
+  font-weight:700;flex-shrink:0;font-size:.9rem;color:#fff;
+}
+.g-opt-a{background:linear-gradient(135deg,#FFF5E6,#FFE0B2)}
+.g-opt-a .opt-letter{background:#FFB74D}
+.g-opt-b{background:linear-gradient(135deg,#E3F2FD,#BBDEFB)}
+.g-opt-b .opt-letter{background:#42A5F5}
+.g-opt-c{background:linear-gradient(135deg,#E8F5E9,#C8E6C9)}
+.g-opt-c .opt-letter{background:#66BB6A}
+.g-opt-d{background:linear-gradient(135deg,#F3E5F5,#E1BEE7)}
+.g-opt-d .opt-letter{background:#AB47BC}
+.guest-option.selected{
+  border-color:var(--pink);
+  box-shadow:0 0 16px rgba(255,107,157,.35);
+  transform:scale(1.02);
+}
+.guest-option.disabled{cursor:default;pointer-events:none}
+.guest-score-bar{
+  display:flex;justify-content:center;align-items:center;gap:8px;
+  background:linear-gradient(135deg,var(--yellow),var(--coral));
+  color:#fff;font-weight:700;font-size:1rem;
+  padding:8px 20px;border-radius:50px;margin-top:8px;
+  box-shadow:0 4px 12px rgba(255,140,66,.3);
+}
+.guest-result-icon{font-size:2.5rem;margin-bottom:8px}
+.guest-result-text{font-size:1.1rem;font-weight:700;margin-bottom:12px}
+.guest-result-text.correct{color:var(--green)}
+.guest-result-text.wrong{color:#ff4444}
+.guest-answer-compare{display:flex;justify-content:center;gap:24px;margin-bottom:16px;font-size:.95rem}
+.guest-answer-compare .label{color:#999;font-size:.85rem}
+.guest-answer-compare .value{font-weight:700;font-size:1.1rem;margin-top:2px}
+.guest-final-score{
+  font-size:3rem;font-weight:900;
+  background:linear-gradient(135deg,var(--pink),var(--purple));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;margin:8px 0;
+}
+.guest-final-rank{font-size:1.5rem;font-weight:700;margin-bottom:16px}
+.guest-top3{background:rgba(0,0,0,.04);border-radius:var(--radius-sm);padding:12px;margin-top:12px}
+.guest-top3-title{font-size:.85rem;color:#999;margin-bottom:8px}
+.guest-top3-item{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  font-size:.9rem;font-weight:600;padding:4px 0;
+}
+
+/* ==================== Confetti Canvas ==================== */
+#confetti-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;display:none}
+#confetti-canvas.active{display:block}
+
+/* ==================== Toast ==================== */
+#toast{
+  position:fixed;top:20px;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,.8);color:#fff;
+  padding:10px 24px;border-radius:50px;
+  font-size:.9rem;font-weight:600;z-index:10000;
+  opacity:0;transition:opacity .3s;pointer-events:none;
+}
+#toast.show{opacity:1}
+
+/* ==================== Responsive ==================== */
+@media(max-width:600px){
+  .options-grid{grid-template-columns:1fr}
+  .lobby-card{padding:24px 16px}
+  .question-card{padding:20px 16px}
+  .winner-card{flex-direction:column;text-align:center;gap:8px}
+  .winner-info{text-align:center}
+  .guest-card{padding:20px 16px}
+}
+@media(max-width:400px){
+  .guest-question-text{font-size:1.05rem}
+  .guest-option{padding:10px 12px;font-size:.9rem}
+}
+
+/* ==================== Misc ==================== */
+.spinner{
+  width:40px;height:40px;
+  border:4px solid rgba(255,255,255,.3);
+  border-top-color:var(--pink);
+  border-radius:50%;
+  animation:spin .8s linear infinite;
+  margin:0 auto 16px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.dot-flashing{color:#aaa;font-size:.9rem}
+.dot-flashing::after{content:'...';animation:dots 1.5s infinite}
+@keyframes dots{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}}
+
+/* Connecting screen */
+#connecting-screen{display:flex;min-height:100vh;align-items:center;justify-content:center;position:relative;z-index:1}
+#connecting-screen.active{display:flex}
+.connecting-card{
+  text-align:center;
+  background:rgba(255,255,255,.95);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow-lg);
+  padding:40px;
+}
+.connecting-card .spinner{border-top-color:var(--purple)}
+</style>
+</head>
+<body>
+
+<!-- Background balloons -->
+<div class="bg-balloons">
+  <span></span><span></span><span></span><span></span>
+  <span></span><span></span><span></span><span></span>
+</div>
+
+<!-- Connection status badge -->
+<div class="conn-badge">
+  <span id="conn-dot" class="conn-dot connecting"></span>
+  <span id="conn-text">连接中...</span>
+</div>
+
+<!-- ==================== Connecting Screen ==================== -->
+<div id="connecting-screen" class="screen active">
+  <div class="connecting-card">
+    <div class="spinner"></div>
+    <div style="font-size:1.1rem;font-weight:700">正在连接服务器<span class="dot-flashing"></span></div>
+    <div style="font-size:.85rem;color:#888;margin-top:8px">请确保网络畅通</div>
+  </div>
+</div>
+
+<!-- ==================== HOST SCREENS ==================== -->
+
+<!-- Host: Lobby -->
+<div id="host-lobby" class="screen">
+  <div class="lobby-card">
+    <div class="lobby-title">婚礼趣味答题</div>
+    <div class="lobby-subtitle" id="lobby-couple-names">【新郎】 & 【新娘】</div>
+
+    <div class="room-code-display">
+      <span style="font-size:.85rem;color:#888">房间号</span>
+      <span class="code" id="room-code-display">------</span>
+    </div>
+
+    <div class="qr-section">
+      <div id="qr-code-container"></div>
+      <div id="qr-fallback" style="display:none"></div>
+      <div class="qr-hint">来宾请用手机扫码加入答题</div>
+    </div>
+
+    <div class="player-count-badge">
+      <span>已加入</span>
+      <span id="player-count-num" style="font-size:1.4rem;font-weight:900">0</span>
+      <span>人</span>
+    </div>
+
+    <div class="player-list" id="lobby-player-list"></div>
+
+    <button class="btn btn-primary btn-large" onclick="hostStartGame()">开始答题</button>
+  </div>
+</div>
+
+<!-- Host: Question -->
+<div id="host-question" class="screen">
+  <div class="host-top-bar">
+    <div class="top-bar-item">
+      <span>第</span>
+      <span id="host-q-num" style="font-weight:900">1</span>
+      <span>/ 10 题</span>
+    </div>
+    <div class="top-bar-item timer-display" id="host-timer">30s</div>
+    <div class="top-bar-item">
+      <span>已答</span>
+      <span id="host-answered-count" style="font-weight:900">0</span>
+      <span id="host-total-players">/0</span>
+    </div>
+  </div>
+
+  <div class="question-card">
+    <div class="question-number" id="host-q-label">第 1 题</div>
+    <div class="question-text" id="host-q-text"></div>
+    <div class="options-grid" id="host-options"></div>
+  </div>
+
+  <div class="host-leaderboard">
+    <div class="leaderboard-title">实时排行榜</div>
+    <div class="leaderboard-list" id="host-leaderboard-list"></div>
+  </div>
+
+  <div class="host-controls">
+    <button class="btn btn-secondary" onclick="hostEndQuestion()" id="btn-end-question">时间到</button>
+  </div>
+</div>
+
+<!-- Host: Reveal -->
+<div id="host-reveal" class="screen">
+  <div class="host-top-bar">
+    <div class="top-bar-item">
+      <span>第</span>
+      <span id="host-reveal-q-num" style="font-weight:900">1</span>
+      <span>/ 10 题</span>
+    </div>
+    <div class="top-bar-item" style="background:linear-gradient(135deg,var(--green),var(--teal));color:#fff">公布答案</div>
+  </div>
+
+  <div class="question-card" style="position:relative">
+    <div class="reveal-badge">正确答案已公布</div>
+    <div class="question-number" id="host-reveal-q-label">第 1 题</div>
+    <div class="question-text" id="host-reveal-q-text"></div>
+    <div class="options-grid" id="host-reveal-options"></div>
+    <div class="answer-stats" id="host-answer-stats"></div>
+  </div>
+
+  <div class="host-leaderboard">
+    <div class="leaderboard-title">更新后排行榜</div>
+    <div class="leaderboard-list" id="host-reveal-leaderboard"></div>
+  </div>
+
+  <div class="host-controls">
+    <button class="btn btn-primary" onclick="hostNextQuestion()" id="btn-next-question">下一题</button>
+  </div>
+</div>
+
+<!-- Host: Final -->
+<div id="host-final" class="screen">
+  <div class="final-container">
+    <div class="final-title">最终排名</div>
+    <div id="host-winners"></div>
+    <button class="btn btn-secondary" onclick="hostResetGame()" style="margin-top:16px">再来一局</button>
+  </div>
+</div>
+
+<!-- ==================== GUEST SCREENS ==================== -->
+
+<!-- Guest: Join -->
+<div id="guest-join" class="guest-screen">
+  <div class="guest-card">
+    <div class="guest-emoji">🎉</div>
+    <div class="guest-title">婚礼趣味答题</div>
+    <div class="guest-subtitle" id="guest-couple-names">【新郎】 & 【新娘】</div>
+    <input class="input-field" id="guest-name-input" type="text" placeholder="请输入你的昵称" maxlength="12" autocomplete="off">
+    <button class="btn btn-primary" style="width:100%" onclick="guestJoin()">加入答题</button>
+  </div>
+</div>
+
+<!-- Guest: Waiting -->
+<div id="guest-waiting" class="guest-screen">
+  <div class="guest-card">
+    <div class="guest-emoji">⏳</div>
+    <div class="guest-title">已加入！</div>
+    <div class="guest-subtitle"><span id="guest-waiting-name"></span>，等待主持人开始答题<span class="dot-flashing"></span></div>
+    <div class="spinner"></div>
+  </div>
+</div>
+
+<!-- Guest: Question -->
+<div id="guest-question" class="guest-screen">
+  <div class="guest-card">
+    <div class="guest-top-info">
+      <div class="guest-q-num">第 <span id="guest-q-num">1</span> / 10 题</div>
+      <div class="guest-timer" id="guest-timer">30s</div>
+    </div>
+    <div class="guest-question-text" id="guest-q-text"></div>
+    <div class="guest-options" id="guest-options"></div>
+    <div class="guest-score-bar" id="guest-score-bar" style="display:none">
+      当前分数: <span id="guest-current-score">0</span>
+    </div>
+  </div>
+</div>
+
+<!-- Guest: Reveal -->
+<div id="guest-reveal" class="guest-screen">
+  <div class="guest-card">
+    <div class="guest-result-icon" id="guest-result-icon"></div>
+    <div class="guest-result-text" id="guest-result-text"></div>
+    <div class="guest-answer-compare">
+      <div>
+        <div class="label">正确答案</div>
+        <div class="value" id="guest-correct-answer"></div>
+      </div>
+      <div>
+        <div class="label">你的答案</div>
+        <div class="value" id="guest-my-answer"></div>
+      </div>
+    </div>
+    <div class="guest-score-bar">
+      当前分数: <span id="guest-reveal-score">0</span> · 排名: 第<span id="guest-reveal-rank">-</span>名
+    </div>
+    <div style="margin-top:12px;color:#999;font-size:.85rem" id="guest-wait-next">等待下一题<span class="dot-flashing"></span></div>
+  </div>
+</div>
+
+<!-- Guest: Final -->
+<div id="guest-final" class="guest-screen">
+  <div class="guest-card">
+    <div class="guest-emoji">🎊</div>
+    <div class="guest-title">答题结束！</div>
+    <div style="color:#888;font-size:.9rem;margin-bottom:4px">你的最终分数</div>
+    <div class="guest-final-score" id="guest-final-score">0</div>
+    <div class="guest-final-rank" id="guest-final-rank-text"></div>
+    <div class="guest-top3">
+      <div class="guest-top3-title">🏆 前三名</div>
+      <div id="guest-top3-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Confetti Canvas -->
+<canvas id="confetti-canvas"></canvas>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+/* ==================== MiniMQTT Client ==================== */
+/* Minimal MQTT 3.1.1 client over WebSocket - no external library needed */
+class MiniMQTT {
+  constructor(url, options = {}) {
+    this.url = url;
+    this.clientId = options.clientId || 'm_' + Math.random().toString(16).substr(2, 12);
+    this.keepAlive = options.keepAlive || 30;
+    this.onConnect = options.onConnect || ((){});
+    this.onMessage = options.onMessage || (()=>{});
+    this.onClose = options.onClose || (()=>{});
+    this.onError = options.onError || (()=>{});
+    this.onReconnect = options.onReconnect || (()=>{});
+    this.ws = null;
+    this.connected = false;
+    this.subscriptions = new Set();
+    this.keepAliveTimer = null;
+    this.reconnectTimer = null;
+    this.shouldReconnect = true;
+  }
+
+  connect() {
+    this.shouldReconnect = true;
+    try {
+      this.ws = new WebSocket(this.url, ['mqtt']);
+      this.ws.binaryType = 'arraybuffer';
+
+      this.ws.onopen = () => { this._sendConnect(); };
+      this.ws.onmessage = (e) => { this._handleMessage(e.data); };
+      this.ws.onclose = () => {
+        this.connected = false;
+        clearInterval(this.keepAliveTimer);
+        if (this.shouldReconnect) {
+          this.onReconnect();
+          this.reconnectTimer = setTimeout(() => this.connect(), 3000);
+        } else {
+          this.onClose();
+        }
+      };
+      this.ws.onerror = () => { this.onError(); };
+    } catch (e) {
+      this.onError();
+      if (this.shouldReconnect) {
+        this.reconnectTimer = setTimeout(() => this.connect(), 3000);
+      }
+    }
+  }
+
+  _encodeRemainingLength(length) {
+    const bytes = [];
+    do {
+      let b = length % 128;
+      length = Math.floor(length / 128);
+      if (length > 0) b |= 128;
+      bytes.push(b);
+    } while (length > 0);
+    return Uint8Array.from(bytes);
+  }
+
+  _decodeRemainingLength(bytes, offset) {
+    let multiplier = 1, value = 0, index = offset;
+    do {
+      const b = bytes[index];
+      value += (b & 127) * multiplier;
+      multiplier *= 128;
+      index++;
+      if (multiplier > 128*128*128) break;
+    } while ((bytes[index-1] & 128) !== 0);
+    return { value, index };
+  }
+
+  _encodeString(str) {
+    const e = new TextEncoder();
+    const sb = e.encode(str);
+    const r = new Uint8Array(2 + sb.length);
+    r[0] = (sb.length >> 8) & 0xFF;
+    r[1] = sb.length & 0xFF;
+    r.set(sb, 2);
+    return r;
+  }
+
+  _sendConnect() {
+    const parts = [
+      this._encodeString('MQTT'),
+      new Uint8Array([0x04]),        // Protocol level 3.1.1
+      new Uint8Array([0x02]),        // Clean session
+      new Uint8Array([0x00, this.keepAlive]),
+      this._encodeString(this.clientId)
+    ];
+    const total = parts.reduce((s,p)=>s+p.length, 0);
+    const payload = new Uint8Array(total);
+    let off = 0;
+    parts.forEach(p => { payload.set(p, off); off += p.length; });
+    const rl = this._encodeRemainingLength(total);
+    const pkt = new Uint8Array(1 + rl.length + total);
+    pkt[0] = 0x10;
+    pkt.set(rl, 1);
+    pkt.set(payload, 1 + rl.length);
+    this.ws.send(pkt);
+  }
+
+  subscribe(topic) {
+    this.subscriptions.add(topic);
+    if (!this.connected) return;
+    const parts = [
+      new Uint8Array([0x00, 0x01]),  // Packet ID
+      this._encodeString(topic),
+      new Uint8Array([0x00])          // QoS 0
+    ];
+    const total = parts.reduce((s,p)=>s+p.length, 0);
+    const payload = new Uint8Array(total);
+    let off = 0;
+    parts.forEach(p => { payload.set(p, off); off += p.length; });
+    const rl = this._encodeRemainingLength(total);
+    const pkt = new Uint8Array(1 + rl.length + total);
+    pkt[0] = 0x82;
+    pkt.set(rl, 1);
+    pkt.set(payload, 1 + rl.length);
+    this.ws.send(pkt);
+  }
+
+  publish(topic, message, retained = false) {
+    if (!this.connected) return;
+    const tb = this._encodeString(topic);
+    const mb = new TextEncoder().encode(message);
+    const total = tb.length + mb.length;
+    const rl = this._encodeRemainingLength(total);
+    const pkt = new Uint8Array(1 + rl.length + total);
+    pkt[0] = 0x30 | (retained ? 0x01 : 0x00);
+    pkt.set(rl, 1);
+    pkt.set(tb, 1 + rl.length);
+    pkt.set(mb, 1 + rl.length + tb.length);
+    this.ws.send(pkt);
+  }
+
+  _handleMessage(data) {
+    const bytes = new Uint8Array(data);
+    if (bytes.length < 2) return;
+    const ptype = (bytes[0] >> 4) & 0x0F;
+    const rl = this._decodeRemainingLength(bytes, 1);
+    const start = 1 + rl.index;
+
+    switch (ptype) {
+      case 2: { // CONNACK
+        this.connected = true;
+        this.keepAliveTimer = setInterval(() => {
+          if (this.connected && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(new Uint8Array([0xC0, 0x00]));
+          }
+        }, (this.keepAlive - 5) * 1000);
+        this.subscriptions.forEach(t => this.subscribe(t));
+        this.onConnect();
+        break;
+      }
+      case 3: { // PUBLISH
+        const retained = bytes[0] & 0x01;
+        const tlen = (bytes[start] << 8) | bytes[start + 1];
+        const topic = new TextDecoder().decode(bytes.slice(start + 2, start + 2 + tlen));
+        const msgStart = start + 2 + tlen;
+        const msgEnd = start + rl.value;
+        const message = new TextDecoder().decode(bytes.slice(msgStart, msgEnd));
+        this.onMessage(topic, message, retained);
+        break;
+      }
+      case 13: break; // PINGRESP
+    }
+  }
+
+  disconnect() {
+    this.shouldReconnect = false;
+    clearInterval(this.keepAliveTimer);
+    clearTimeout(this.reconnectTimer);
+    if (this.connected && this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(new Uint8Array([0xE0, 0x00]));
+    }
+    this.connected = false;
+    if (this.ws) this.ws.close();
+  }
+}
+
+/* ==================== Configuration ==================== */
+// EMQX 公共 Broker（国内可直接访问，无需注册）
+const MQTT_BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
+
+//  请替换为新人的名字
+const GROOM_NAME = '【新郎】';
+const BRIDE_NAME = '【新娘】';
+
+/* ==================== Questions ==================== */
+const QUESTIONS = [
+  // 前5题关于新人 — 请根据实际情况修改
+  { q: `${GROOM_NAME}和${BRIDE_NAME}是在哪里初次相遇的？`, options: ['在校园里','在朋友聚会上','在咖啡厅','在网络上'], correct: 1 },
+  { q: `${GROOM_NAME}最喜欢的一道菜是什么？`, options: ['红烧肉','麻婆豆腐','糖醋排骨','宫保鸡丁'], correct: 0 },
+  { q: `${BRIDE_NAME}平时最喜欢做的事情是？`, options: ['看电影','旅行','美食探店','追剧'], correct: 2 },
+  { q: `${GROOM_NAME}和${BRIDE_NAME}在一起多久了？`, options: ['1年','2年','3年','5年以上'], correct: 2 },
+  { q: `${BRIDE_NAME}最想收到什么礼物？`, options: ['鲜花','包包','首饰','陪伴'], correct: 3 },
+  // 后5题通用趣味
+  { q: '世界上飞行速度最快的动物是？', options: ['猎豹','游隼','旗鱼','雨燕'], correct: 1 },
+  { q: '蜂蜜的保质期有多长？', options: ['1年','5年','10年','几乎不会过期'], correct: 3 },
+  { q: '人体最大的器官是？', options: ['心脏','肝脏','皮肤','大脑'], correct: 2 },
+  { q: '"执子之手，与子偕老"出自哪部经典？', options: ['诗经','论语','楚辞','周易'], correct: 0 },
+  { q: '世界上最大的海洋是？', options: ['大西洋','印度洋','北冰洋','太平洋'], correct: 3 },
+];
+
+const QUESTION_TIME = 30;
+const POINTS_PER_CORRECT = 10;
+const OPTION_LETTERS = ['A','B','C','D'];
+
+/* ==================== State ==================== */
+let mqttClient = null;
+let isHost = false;
+let roomCode = null;
+let playerId = null;
+let playerName = null;
+let myScore = 0;
+let gamePhase = 'connecting';
+let currentQuestion = -1;
+let questionStartTime = 0;
+let players = {};       // { id: { name, score } }
+let answers = {};       // { qIndex: { playerId: answerIdx } }
+let timerInterval = null;
+let questionEndTime = 0;
+let mySelectedOption = -1;
+let hasReceivedState = false;
+let stateTimeout = null;
+
+/* ==================== Init ==================== */
+function init() {
+  const params = new URLSearchParams(window.location.search);
+  isHost = params.get('role') !== 'guest';
+  roomCode = params.get('room');
+
+  //  Set couple names
+  document.getElementById('lobby-couple-names').textContent = `${GROOM_NAME} & ${BRIDE_NAME}`;
+  document.getElementById('guest-couple-names').textContent = `${GROOM_NAME} & ${BRIDE_NAME}`;
+
+  if (isHost) {
+    //  Host: generate or reuse room code
+    roomCode = roomCode || localStorage.getItem('weddingQuiz_roomCode');
+    if (!roomCode) {
+      roomCode = generateRoomCode();
+      localStorage.setItem('weddingQuiz_roomCode', roomCode);
+    }
+    document.getElementById('room-code-display').textContent = roomCode;
+    connectMQTT();
+  } else {
+    //  Guest
+    if (!roomCode) {
+      showGuestError('请扫描大屏上的二维码加入答题');
+      return;
+    }
+    playerId = localStorage.getItem('weddingQuiz_playerId');
+    if (!playerId) {
+      playerId = 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2,6);
+      localStorage.setItem('weddingQuiz_playerId', playerId);
+    }
+    const storedName = localStorage.getItem('weddingQuiz_' + roomCode + '_name');
+    if (storedName) playerName = storedName;
+    connectMQTT();
+  }
+}
+
+function showGuestError(msg) {
+  document.querySelectorAll('.screen, .guest-screen').forEach(s => s.classList.remove('active'));
+  const card = document.createElement('div');
+  card.className = 'guest-card';
+  card.style.cssText = 'max-width:400px;margin:auto;position:relative;z-index:1;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;';
+  card.innerHTML = `<div style="text-align:center;background:rgba(255,255,255,.95);border-radius:20px;box-shadow:0 16px 48px rgba(0,0,0,.18);padding:40px;"><div style="font-size:3rem;margin-bottom:12px">😢</div><div style="font-size:1.2rem;font-weight:700;margin-bottom:8px">${msg}</div></div>`;
+  document.body.appendChild(card);
+}
+
+/* ==================== MQTT Connection ==================== */
+function connectMQTT() {
+  updateConnStatus('connecting');
+
+  mqttClient = new MiniMQTT(MQTT_BROKER_URL, {
+    clientId: (isHost ? 'host_' : 'guest_') + roomCode + '_' + Math.random().toString(16).substr(2,6),
+    keepAlive: 30,
+    onConnect: onMQTTConnect,
+    onMessage: onMQTTMessage,
+    onClose: () => { updateConnStatus('disconnected'); },
+    onReconnect: () => { updateConnStatus('connecting'); },
+    onError: () => {}
+  });
+
+  mqttClient.connect();
+}
+
+function onMQTTConnect() {
+  updateConnStatus('connected');
+  const prefix = `wq/${roomCode}`;
+
+  //  Everyone subscribes to state and players (retained)
+  mqttClient.subscribe(`${prefix}/state`);
+  mqttClient.subscribe(`${prefix}/players`);
+
+  if (isHost) {
+    //  Host also subscribes to join and answer events
+    mqttClient.subscribe(`${prefix}/join`);
+    mqttClient.subscribe(`${prefix}/answer`);
+
+    //  Wait 2s for retained messages; if none, init lobby
+    stateTimeout = setTimeout(() => {
+      if (!hasReceivedState) {
+        gamePhase = 'lobby';
+        currentQuestion = -1;
+        players = {};
+        answers = {};
+        publishState();
+        publishPlayers();
+        showScreen('host-lobby');
+        generateQRCode();
+      }
+    }, 2000);
+  } else {
+    //  Guest: if already joined before, re-publish join
+    if (playerName) {
+      publishJoin();
+    }
+    //  Wait for retained state; if none in 2s, show waiting
+    stateTimeout = setTimeout(() => {
+      if (!hasReceivedState) {
+        if (playerName) {
+          showGuestScreen('guest-waiting');
+          document.getElementById('guest-waiting-name').textContent = playerName;
+        } else {
+          showGuestScreen('guest-join');
+        }
+      }
+    }, 2000);
+  }
+}
+
+function onMQTTMessage(topic, message, retained) {
+  const prefix = `wq/${roomCode}`;
+
+  //  State message (retained)
+  if (topic === `${prefix}/state`) {
+    if (!message) return;
+    hasReceivedState = true;
+    clearTimeout(stateTimeout);
+    try {
+      const state = JSON.parse(message);
+      gamePhase = state.phase;
+      currentQuestion = state.currentQuestion;
+      questionStartTime = state.questionStartTime || 0;
+
+      if (isHost) {
+        handleHostStateChange();
+      } else {
+        handleGuestStateChange();
+      }
+    } catch(e) { console.error('State parse error', e); }
+    return;
+  }
+
+  //  Players message (retained)
+  if (topic === `${prefix}/players`) {
+    if (!message) { players = {}; return; }
+    try {
+      const arr = JSON.parse(message);
+      players = {};
+      arr.forEach(p => { players[p.id] = { name: p.name, score: p.score || 0 }; });
+      if (isHost) {
+        updatePlayerCount();
+        updateLobbyPlayerList();
+        updateLeaderboard();
+        updateAnsweredCount();
+      } else {
+        updateGuestRanking();
+        updateGuestScoreDisplay();
+      }
+    } catch(e) { console.error('Players parse error', e); }
+    return;
+  }
+
+  //  Join message (not retained, host only)
+  if (isHost && topic === `${prefix}/join`) {
+    try {
+      const data = JSON.parse(message);
+      if (!players[data.id]) {
+        players[data.id] = { name: data.name, score: 0 };
+      } else {
+        players[data.id].name = data.name;
+      }
+      updatePlayerCount();
+      updateLobbyPlayerList();
+      updateLeaderboard();
+      publishPlayers();
+    } catch(e) {}
+    return;
+  }
+
+  //  Answer message (not retained, host only)
+  if (isHost && topic === `${prefix}/answer`) {
+    try {
+      const data = JSON.parse(message);
+      if (!answers[data.qIndex]) answers[data.qIndex] = {};
+      answers[data.qIndex][data.playerId] = data.answer;
+      updateAnsweredCount();
+    } catch(e) {}
+    return;
+  }
+}
+
+/* ==================== Publish Helpers ==================== */
+function publishState() {
+  const msg = JSON.stringify({
+    phase: gamePhase,
+    currentQuestion: currentQuestion,
+    questionStartTime: questionStartTime
+  });
+  mqttClient.publish(`wq/${roomCode}/state`, msg, true);
+}
+
+function publishPlayers() {
+  const arr = Object.entries(players).map(([id, p]) => ({ id, name: p.name, score: p.score || 0 }));
+  mqttClient.publish(`wq/${roomCode}/players`, JSON.stringify(arr), true);
+}
+
+function publishJoin() {
+  mqttClient.publish(`wq/${roomCode}/join`, JSON.stringify({ id: playerId, name: playerName }));
+}
+
+function publishAnswer(qIndex, answerIdx) {
+  mqttClient.publish(`wq/${roomCode}/answer`, JSON.stringify({ playerId, qIndex, answer: answerIdx }));
+}
+
+/* ==================== Host Logic ==================== */
+function handleHostStateChange() {
+  if (gamePhase === 'lobby') {
+    showScreen('host-lobby');
+    generateQRCode();
+  } else if (gamePhase === 'question') {
+    showHostQuestion(currentQuestion, questionStartTime);
+  } else if (gamePhase === 'reveal') {
+    showHostReveal(currentQuestion);
+  } else if (gamePhase === 'final') {
+    showHostFinal();
+  }
+}
+
+function hostStartGame() {
+  const count = Object.keys(players).length;
+  if (count === 0) {
+    showToast('还没有来宾加入，请先让来宾扫码');
+    return;
+  }
+  //  Reset scores
+  Object.keys(players).forEach(id => { players[id].score = 0; });
+  answers = {};
+  gamePhase = 'question';
+  currentQuestion = 0;
+  questionStartTime = Date.now();
+  publishState();
+  publishPlayers();
+}
+
+function showHostQuestion(qIndex, startTime) {
+  showScreen('host-question');
+  const q = QUESTIONS[qIndex];
+  document.getElementById('host-q-num').textContent = qIndex + 1;
+  document.getElementById('host-q-label').textContent = `第 ${qIndex + 1} 题`;
+  document.getElementById('host-q-text').textContent = q.q;
+
+  const c = document.getElementById('host-options');
+  c.innerHTML = q.options.map((opt, i) => `
+    <div class="option-box option-${OPTION_LETTERS[i].toLowerCase()}">
+      <div class="opt-letter">${OPTION_LETTERS[i]}</div>
+      <span>${escapeHtml(opt)}</span>
+    </div>`).join('');
+
+  document.getElementById('btn-end-question').textContent = '时间到';
+  document.getElementById('btn-end-question').disabled = false;
+  startHostTimer(startTime);
+}
+
+function startHostTimer(startTime) {
+  if (timerInterval) clearInterval(timerInterval);
+  questionEndTime = startTime + QUESTION_TIME * 1000;
+  const update = () => {
+    const remaining = Math.max(0, Math.ceil((questionEndTime - Date.now()) / 1000));
+    const el = document.getElementById('host-timer');
+    el.textContent = remaining + 's';
+    el.classList.toggle('warning', remaining <= 5);
+    if (remaining <= 0) { clearInterval(timerInterval); timerInterval = null; hostEndQuestion(); }
+  };
+  update();
+  timerInterval = setInterval(update, 200);
+}
+
+function hostEndQuestion() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  document.getElementById('btn-end-question').disabled = true;
+
+  //  Calculate scores
+  const correct = QUESTIONS[currentQuestion].correct;
+  const qAns = answers[currentQuestion] || {};
+  Object.keys(players).forEach(pid => {
+    if (qAns[pid] !== undefined && qAns[pid] === correct) {
+      players[pid].score = (players[pid].score || 0) + POINTS_PER_CORRECT;
+    }
+  });
+
+  gamePhase = 'reveal';
+  publishState();
+  publishPlayers();
+}
+
+function showHostReveal(qIndex) {
+  showScreen('host-reveal');
+  const q = QUESTIONS[qIndex];
+  document.getElementById('host-reveal-q-num').textContent = qIndex + 1;
+  document.getElementById('host-reveal-q-label').textContent = `第 ${qIndex + 1} 题`;
+  document.getElementById('host-reveal-q-text').textContent = q.q;
+
+  const c = document.getElementById('host-reveal-options');
+  c.innerHTML = q.options.map((opt, i) => `
+    <div class="option-box option-${OPTION_LETTERS[i].toLowerCase()} ${i === q.correct ? 'correct' : ''}">
+      <div class="opt-letter">${OPTION_LETTERS[i]}</div>
+      <span>${escapeHtml(opt)}</span>
+    </div>`).join('');
+
+  //  Stats
+  const qAns = answers[qIndex] || {};
+  const total = Object.keys(players).length;
+  const stats = [0,0,0,0];
+  Object.values(qAns).forEach(a => { if (a >= 0 && a < 4) stats[a]++; });
+  const noAns = total - Object.keys(qAns).length;
+  document.getElementById('host-answer-stats').innerHTML =
+    OPTION_LETTERS.map((l,i) => `<div class="stat-item">${l}: <span class="stat-num">${stats[i]}</span></div>`).join('') +
+    `<div class="stat-item">未答: <span class="stat-num">${noAns}</span></div>`;
+
+  //  Button
+  const btn = document.getElementById('btn-next-question');
+  if (qIndex >= QUESTIONS.length - 1) {
+    btn.textContent = '查看最终排名';
+  } else {
+    btn.textContent = '下一题';
+  }
+}
+
+function hostNextQuestion() {
+  if (currentQuestion >= QUESTIONS.length - 1) {
+    gamePhase = 'final';
+    currentQuestion = -1;
+    publishState();
+    return;
+  }
+  gamePhase = 'question';
+  currentQuestion++;
+  questionStartTime = Date.now();
+  publishState();
+}
+
+function showHostFinal() {
+  showScreen('host-final');
+  const sorted = Object.entries(players).map(([id,p]) => ({id,...p})).sort((a,b)=>(b.score||0)-(a.score||0));
+  let rank = 1;
+  sorted.forEach((p,i) => { if (i > 0 && (p.score||0) !== (sorted[i-1].score||0)) rank = i+1; p.rank = rank; });
+  const top3 = sorted.filter(p => p.rank <= 3);
+  const medals = ['🥇','🥈','🥉'];
+  const cls = ['rank-1','rank-2','rank-3'];
+  document.getElementById('host-winners').innerHTML = top3.map((p,i) => `
+    <div class="winner-card ${cls[i]||''}">
+      <div class="winner-medal">${medals[p.rank-1]||'🎉'}</div>
+      <div class="winner-info">
+        <div class="winner-name">${escapeHtml(p.name)}</div>
+        <div class="winner-score">${p.score||0} 分</div>
+      </div>
+    </div>`).join('');
+  startConfetti();
+}
+
+function hostResetGame() {
+  Object.keys(players).forEach(id => { players[id].score = 0; });
+  answers = {};
+  gamePhase = 'lobby';
+  currentQuestion = -1;
+  questionStartTime = 0;
+  publishState();
+  publishPlayers();
+  stopConfetti();
+}
+
+function updatePlayerCount() {
+  const c = Object.keys(players).length;
+  document.getElementById('player-count-num').textContent = c;
+  document.getElementById('host-total-players').textContent = '/' + c;
+}
+
+function updateLobbyPlayerList() {
+  const list = document.getElementById('lobby-player-list');
+  const arr = Object.values(players).sort((a,b) => (a.joinedAt||0)-(b.joinedAt||0));
+  list.innerHTML = arr.map(p => `<span class="player-chip">${escapeHtml(p.name)}</span>`).join('');
+}
+
+function updateLeaderboard() {
+  const sorted = Object.entries(players).map(([id,p]) => ({id,...p})).sort((a,b)=>(b.score||0)-(a.score||0)).slice(0,10);
+  const render = (cid) => {
+    const c = document.getElementById(cid);
+    if (!c) return;
+    if (sorted.length === 0) { c.innerHTML = '<div style="text-align:center;color:#aaa;padding:12px">暂无数据</div>'; return; }
+    let rank = 1;
+    c.innerHTML = sorted.map((p,i) => {
+      if (i > 0 && (p.score||0) !== (sorted[i-1].score||0)) rank = i+1;
+      const rc = rank <= 3 ? `lb-rank-${rank}` : 'lb-rank-other';
+      return `<div class="lb-item"><div class="lb-rank ${rc}">${rank}</div><div class="lb-name">${escapeHtml(p.name)}</div><div class="lb-score">${p.score||0}</div></div>`;
+    }).join('');
+  };
+  render('host-leaderboard-list');
+  render('host-reveal-leaderboard');
+}
+
+function updateAnsweredCount() {
+  if (currentQuestion < 0) return;
+  const qAns = answers[currentQuestion] || {};
+  const el = document.getElementById('host-answered-count');
+  if (el) el.textContent = Object.keys(qAns).length;
+}
+
+/* ==================== Guest Logic ==================== */
+function handleGuestStateChange() {
+  if (gamePhase === 'lobby') {
+    myScore = 0;
+    mySelectedOption = -1;
+    if (playerName) {
+      showGuestScreen('guest-waiting');
+      document.getElementById('guest-waiting-name').textContent = playerName;
+    } else {
+      showGuestScreen('guest-join');
+    }
+  } else if (gamePhase === 'question') {
+    if (playerName) {
+      showGuestQuestion(currentQuestion, questionStartTime);
+    } else {
+      showGuestScreen('guest-join');
+    }
+  } else if (gamePhase === 'reveal') {
+    if (playerName) {
+      showGuestReveal(currentQuestion);
+    } else {
+      showGuestScreen('guest-join');
+    }
+  } else if (gamePhase === 'final') {
+    if (playerName) {
+      showGuestFinal();
+    } else {
+      showGuestScreen('guest-join');
+    }
+  }
+}
+
+function guestJoin() {
+  const inp = document.getElementById('guest-name-input');
+  const name = inp.value.trim();
+  if (!name) { showToast('请输入昵称'); inp.focus(); return; }
+  if (name.length > 12) { showToast('昵称不能超过12个字'); return; }
+
+  playerName = name;
+  localStorage.setItem('weddingQuiz_' + roomCode + '_name', name);
+  publishJoin();
+  showGuestScreen('guest-waiting');
+  document.getElementById('guest-waiting-name').textContent = name;
+}
+
+function showGuestQuestion(qIndex, startTime) {
+  showGuestScreen('guest-question');
+  mySelectedOption = -1;
+  const q = QUESTIONS[qIndex];
+  document.getElementById('guest-q-num').textContent = qIndex + 1;
+  document.getElementById('guest-q-text').textContent = q.q;
+
+  const c = document.getElementById('guest-options');
+  c.innerHTML = q.options.map((opt, i) => `
+    <div class="guest-option g-opt-${OPTION_LETTERS[i].toLowerCase()}" data-index="${i}" onclick="guestSelectOption(${i})">
+      <div class="opt-letter">${OPTION_LETTERS[i]}</div>
+      <span>${escapeHtml(opt)}</span>
+    </div>`).join('');
+
+  const sb = document.getElementById('guest-score-bar');
+  if (qIndex > 0) { sb.style.display = 'flex'; document.getElementById('guest-current-score').textContent = myScore; }
+  else { sb.style.display = 'none'; }
+
+  startGuestTimer(startTime);
+}
+
+function startGuestTimer(startTime) {
+  if (timerInterval) clearInterval(timerInterval);
+  questionEndTime = startTime + QUESTION_TIME * 1000;
+  const update = () => {
+    const remaining = Math.max(0, Math.ceil((questionEndTime - Date.now()) / 1000));
+    const el = document.getElementById('guest-timer');
+    el.textContent = remaining + 's';
+    el.classList.toggle('warning', remaining <= 5);
+    if (remaining <= 0) {
+      clearInterval(timerInterval); timerInterval = null;
+      document.querySelectorAll('.guest-option').forEach(el => el.classList.add('disabled'));
+    }
+  };
+  update();
+  timerInterval = setInterval(update, 200);
+}
+
+function guestSelectOption(index) {
+  if (gamePhase !== 'question') return;
+  if (mySelectedOption === index) return;
+  mySelectedOption = index;
+  document.querySelectorAll('.guest-option').forEach((el, i) => el.classList.toggle('selected', i === index));
+  publishAnswer(currentQuestion, index);
+  if (navigator.vibrate) navigator.vibrate(30);
+}
+
+function showGuestReveal(qIndex) {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  showGuestScreen('guest-reveal');
+  const q = QUESTIONS[qIndex];
+  const correctIdx = q.correct;
+  const myAns = mySelectedOption;
+  const iconEl = document.getElementById('guest-result-icon');
+  const textEl = document.getElementById('guest-result-text');
+
+  if (myAns === correctIdx) {
+    iconEl.textContent = '🎉'; textEl.textContent = '答对了！+10分'; textEl.className = 'guest-result-text correct';
+    if (navigator.vibrate) navigator.vibrate([30,50,30]);
+  } else if (myAns === -1) {
+    iconEl.textContent = '😅'; textEl.textContent = '未作答'; textEl.className = 'guest-result-text wrong';
+  } else {
+    iconEl.textContent = '💪'; textEl.textContent = '差一点！再接再厉'; textEl.className = 'guest-result-text wrong';
+  }
+
+  document.getElementById('guest-correct-answer').textContent = OPTION_LETTERS[correctIdx] + '. ' + q.options[correctIdx];
+  if (myAns >= 0) {
+    const myEl = document.getElementById('guest-my-answer');
+    myEl.textContent = OPTION_LETTERS[myAns] + '. ' + q.options[myAns];
+    myEl.style.color = myAns === correctIdx ? 'var(--green)' : '#ff4444';
+  } else {
+    const myEl = document.getElementById('guest-my-answer');
+    myEl.textContent = '—'; myEl.style.color = '#999';
+  }
+
+  //  Score from players list
+  const me = players[playerId];
+  if (me) { myScore = me.score || 0; document.getElementById('guest-reveal-score').textContent = myScore; }
+  updateGuestRanking();
+
+  if (qIndex >= QUESTIONS.length - 1) {
+    document.getElementById('guest-wait-next').innerHTML = '等待公布最终排名<span class="dot-flashing"></span>';
+  }
+}
+
+function updateGuestRanking() {
+  const sorted = Object.entries(players).map(([id,p]) => ({id,...p})).sort((a,b)=>(b.score||0)-(a.score||0));
+  let rank = 1;
+  sorted.forEach((p,i) => { if (i > 0 && (p.score||0) !== (sorted[i-1].score||0)) rank = i+1; p.rank = rank; });
+  const me = sorted.find(p => p.id === playerId);
+  const myRank = me ? me.rank : sorted.length;
+
+  const rankEl = document.getElementById('guest-reveal-rank');
+  if (rankEl) rankEl.textContent = myRank;
+
+  const finalRankEl = document.getElementById('guest-final-rank-text');
+  if (finalRankEl && gamePhase === 'final') {
+    finalRankEl.innerHTML = myRank <= 3
+      ? `恭喜你！第 <span style="color:var(--pink)">${myRank}</span> 名 🎉`
+      : `你排名第 <span style="color:var(--pink)">${myRank}</span> 名`;
+  }
+
+  const top3List = document.getElementById('guest-top3-list');
+  if (top3List && gamePhase === 'final') {
+    const top3 = sorted.filter(p => p.rank <= 3);
+    const medals = ['🥇','🥈','🥉'];
+    top3List.innerHTML = top3.map(p => `
+      <div class="guest-top3-item">
+        <span>${medals[p.rank-1]||'🎉'}</span>
+        <span>${escapeHtml(p.name)}</span>
+        <span style="color:var(--pink)">${p.score||0}分</span>
+      </div>`).join('');
+  }
+}
+
+function updateGuestScoreDisplay() {
+  const me = players[playerId];
+  if (me) myScore = me.score || 0;
+  const s1 = document.getElementById('guest-current-score');
+  if (s1) s1.textContent = myScore;
+  const s2 = document.getElementById('guest-reveal-score');
+  if (s2) s2.textContent = myScore;
+}
+
+function showGuestFinal() {
+  showGuestScreen('guest-final');
+  document.getElementById('guest-final-score').textContent = myScore;
+  updateGuestRanking();
+}
+
+/* ==================== QR Code ==================== */
+let qrLibLoaded = false;
+let pendingQRUrl = null;
+
+function loadQRLib() {
+  const CDNs = [
+    'https://cdn.bootcdn.net/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',
+    'https://cdn.staticfile.net/qrcodejs/1.0.0/qrcode.min.js',
+    'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js',
+  ];
+  let i = 0;
+  const tryLoad = () => {
+    if (i >= CDNs.length) { console.warn('QR lib failed'); return; }
+    const s = document.createElement('script');
+    s.src = CDNs[i];
+    s.onload = () => { qrLibLoaded = true; if (pendingQRUrl) { generateQRCode(pendingQRUrl); pendingQRUrl = null; } };
+    s.onerror = () => { i++; tryLoad(); };
+    document.head.appendChild(s);
+  };
+  tryLoad();
+}
+
+function getGuestUrl() {
+  if (window.location.protocol === 'file:') return null;
+  const url = new URL(window.location.href);
+  url.searchParams.set('room', roomCode);
+  url.searchParams.set('role', 'guest');
+  return url.toString();
+}
+
+function generateQRCode(url) {
+  if (!url) url = getGuestUrl();
+  if (!url) {
+    //  file:// — show fallback
+    const fb = document.getElementById('qr-fallback');
+    fb.style.display = 'block';
+    fb.innerHTML = '⚠️ 当前为本地文件，手机无法访问。<br>请将此 HTML 文件上传到网站空间后再使用二维码功能。';
+    return;
+  }
+  if (!qrLibLoaded) { pendingQRUrl = url; return; }
+
+  const container = document.getElementById('qr-code-container');
+  container.innerHTML = '';
+  try {
+    new QRCode(container, { text: url, width: 256, height: 256, correctLevel: QRCode.CorrectLevel.M });
+  } catch(e) {
+    const fb = document.getElementById('qr-fallback');
+    fb.style.display = 'block';
+    fb.textContent = url;
+  }
+}
+
+/* ==================== UI Helpers ==================== */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showGuestScreen(id) {
+  document.querySelectorAll('.guest-screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function escapeHtml(text) {
+  const d = document.createElement('div');
+  d.textContent = String(text);
+  return d.innerHTML;
+}
+
+function generateRoomCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+function updateConnStatus(status) {
+  const dot = document.getElementById('conn-dot');
+  const text = document.getElementById('conn-text');
+  dot.className = 'conn-dot ' + status;
+  const labels = { connected: '已连接', connecting: '连接中...', disconnected: '已断开' };
+  text.textContent = labels[status] || status;
+}
+
+/* ==================== Confetti ==================== */
+let confettiAnimId = null;
+function startConfetti() {
+  const canvas = document.getElementById('confetti-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+  canvas.classList.add('active');
+  const colors = ['#FF6B9D','#FF8C42','#FFD93D','#6BCB77','#4ECDC4','#A06CD5','#4D96FF'];
+  const conf = [];
+  for (let i = 0; i < 200; i++) {
+    conf.push({
+      x: Math.random()*canvas.width, y: Math.random()*-canvas.height,
+      w: 8+Math.random()*12, h: 8+Math.random()*12,
+      color: colors[Math.floor(Math.random()*colors.length)],
+      speed: 2+Math.random()*5, drift: -2+Math.random()*4,
+      rot: Math.random()*360, rotSpeed: -5+Math.random()*10,
+      shape: Math.random() > 0.5 ? 'rect' : 'circle'
+    });
+  }
+  const animate = () => {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    conf.forEach(c => {
+      c.y += c.speed; c.x += c.drift; c.rot += c.rotSpeed;
+      if (c.y > canvas.height + 20) { c.y = -20; c.x = Math.random()*canvas.width; }
+      ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.rot*Math.PI/180);
+      ctx.fillStyle = c.color;
+      if (c.shape === 'rect') ctx.fillRect(-c.w/2, -c.h/2, c.w, c.h);
+      else { ctx.beginPath(); ctx.arc(0, 0, c.w/2, 0, Math.PI*2); ctx.fill(); }
+      ctx.restore();
+    });
+    confettiAnimId = requestAnimationFrame(animate);
+  };
+  animate();
+}
+
+function stopConfetti() {
+  if (confettiAnimId) { cancelAnimationFrame(confettiAnimId); confettiAnimId = null; }
+  document.getElementById('confetti-canvas').classList.remove('active');
+}
+
+/* ==================== Keyboard ==================== */
+document.addEventListener('keydown', (e) => {
+  if (!isHost) return;
+  if (e.key === 'Enter' && gamePhase === 'lobby') hostStartGame();
+  if (e.key === ' ' || e.key === 'Spacebar') {
+    e.preventDefault();
+    if (gamePhase === 'question') hostEndQuestion();
+    else if (gamePhase === 'reveal') hostNextQuestion();
+  }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('guest-name-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') guestJoin();
+  });
+});
+
+/* ==================== Start ==================== */
+loadQRLib();
+window.addEventListener('load', init);
+</script>
+</body>
+</html>
