@@ -731,7 +731,7 @@ class MiniMQTT {
     this.url = url;
     this.clientId = options.clientId || 'm_' + Math.random().toString(16).substr(2, 12);
     this.keepAlive = options.keepAlive || 30;
-    this.onConnect = options.onConnect || ((){});
+    this.onConnect = options.onConnect || (() => {});
     this.onMessage = options.onMessage || (()=>{});
     this.onClose = options.onClose || (()=>{});
     this.onError = options.onError || (()=>{});
@@ -904,8 +904,13 @@ class MiniMQTT {
 }
 
 /* ==================== Configuration ==================== */
-// EMQX 公共 Broker（国内可直接访问，无需注册）
-const MQTT_BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
+// 多个公共 MQTT Broker，自动尝试连接（国内优先）
+const MQTT_BROKERS = [
+  'wss://broker.emqx.io:8084/mqtt',       // EMQX（国内公司）
+  'wss://broker.hivemq.com:8884/mqtt',    // HiveMQ 备选
+  'wss://test.mosquitto.org:8081/mqtt',  // Mosquitto 备选
+];
+let brokerIndex = 0;
 
 //  请替换为新人的名字
 const GROOM_NAME = '【新郎】';
@@ -995,20 +1000,105 @@ function showGuestError(msg) {
 }
 
 /* ==================== MQTT Connection ==================== */
+let connectTimeout = null;
+let tryCount = 0;
+
 function connectMQTT() {
   updateConnStatus('connecting');
+  tryConnectMQTT();
+}
 
-  mqttClient = new MiniMQTT(MQTT_BROKER_URL, {
+function tryConnectMQTT() {
+  const brokerUrl = MQTT_BROKERS[brokerIndex];
+  updateConnectingText(brokerIndex, tryCount);
+
+  //  8秒超时：如果没连上，换下一个 Broker
+  if (connectTimeout) clearTimeout(connectTimeout);
+  connectTimeout = setTimeout(() => {
+    console.log('Broker timeout:', brokerUrl);
+    tryNextBroker();
+  }, 8000);
+
+  if (mqttClient) {
+    mqttClient.shouldReconnect = false;
+    try { mqttClient.disconnect(); } catch(e) {}
+  }
+
+  mqttClient = new MiniMQTT(brokerUrl, {
     clientId: (isHost ? 'host_' : 'guest_') + roomCode + '_' + Math.random().toString(16).substr(2,6),
     keepAlive: 30,
-    onConnect: onMQTTConnect,
+    onConnect: () => {
+      if (connectTimeout) { clearTimeout(connectTimeout); connectTimeout = null; }
+      tryCount = 0;
+      onMQTTConnect();
+    },
     onMessage: onMQTTMessage,
-    onClose: () => { updateConnStatus('disconnected'); },
+    onClose: () => {
+      updateConnStatus('disconnected');
+      //  Reconnect after 3s on the same broker
+      setTimeout(() => { if (!mqttClient.connected) tryConnectMQTT(); }, 3000);
+    },
     onReconnect: () => { updateConnStatus('connecting'); },
-    onError: () => {}
+    onError: () => {
+      //  Try next broker on error
+      if (connectTimeout) { clearTimeout(connectTimeout); connectTimeout = null; }
+      setTimeout(() => tryNextBroker(), 1000);
+    }
   });
 
   mqttClient.connect();
+}
+
+function tryNextBroker() {
+  tryCount++;
+  //  After trying all brokers twice, show error with retry button
+  if (tryCount > MQTT_BROKERS.length * 2) {
+    showConnectionError();
+    return;
+  }
+  brokerIndex = (brokerIndex + 1) % MQTT_BROKERS.length;
+  console.log('Trying broker', brokerIndex, MQTT_BROKERS[brokerIndex]);
+  tryConnectMQTT();
+}
+
+function updateConnectingText(bIdx, tCount) {
+  const el = document.querySelector('#connecting-screen .connecting-card div:nth-child(2)');
+  if (el) {
+    const brokerNames = ['EMQX', 'HiveMQ', 'Mosquitto'];
+    const name = brokerNames[bIdx] || '未知';
+    el.innerHTML = `正在连接服务器<span class="dot-flashing"></span>`;
+  }
+}
+
+function showConnectionError() {
+  const card = document.querySelector('#connecting-screen .connecting-card');
+  if (card) {
+    card.innerHTML = `
+      <div style="font-size:3rem;margin-bottom:12px">📡</div>
+      <div style="font-size:1.1rem;font-weight:700;margin-bottom:8px">连接服务器失败</div>
+      <div style="font-size:.85rem;color:#888;margin-bottom:20px;line-height:1.6">
+        可能原因：<br>
+        1. 网络环境限制 WSS 连接<br>
+        2. 所有 MQTT Broker 暂时不可用<br>
+        3. 浏览器阻止了 WebSocket 连接
+      </div>
+      <button class="btn btn-primary" onclick="retryConnection()">重新连接</button>
+    `;
+  }
+}
+
+function retryConnection() {
+  brokerIndex = 0;
+  tryCount = 0;
+  const card = document.querySelector('#connecting-screen .connecting-card');
+  if (card) {
+    card.innerHTML = `
+      <div class="spinner"></div>
+      <div style="font-size:1.1rem;font-weight:700">正在连接服务器<span class="dot-flashing"></span></div>
+      <div style="font-size:.85rem;color:#888;margin-top:8px">请确保网络畅通</div>
+    `;
+  }
+  connectMQTT();
 }
 
 function onMQTTConnect() {
