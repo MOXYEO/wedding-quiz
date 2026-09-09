@@ -724,201 +724,43 @@ body{
 <!-- Toast -->
 <div id="toast"></div>
 
+<!-- Version Badge -->
+<div id="version-badge" style="position:fixed;bottom:8px;right:8px;font-size:11px;color:rgba(0,0,0,.45);background:rgba(255,255,255,.6);padding:2px 8px;border-radius:8px;z-index:9999;pointer-events:none;font-family:sans-serif"></div>
+
 <script>
-/* ==================== MiniMQTT Client ==================== */
-/* Minimal MQTT 3.1.1 client over WebSocket - no external library needed */
-class MiniMQTT {
-  constructor(url, options = {}) {
-    this.url = url;
-    this.clientId = options.clientId || 'm_' + Math.random().toString(16).substr(2, 12);
-    this.keepAlive = options.keepAlive || 30;
-    this.onConnect = options.onConnect || (() => {});
-    this.onMessage = options.onMessage || (()=>{});
-    this.onClose = options.onClose || (()=>{});
-    this.onError = options.onError || (()=>{});
-    this.onReconnect = options.onReconnect || (()=>{});
-    this.ws = null;
-    this.connected = false;
-    this.subscriptions = new Set();
-    this.keepAliveTimer = null;
-    this.reconnectTimer = null;
-    this.shouldReconnect = true;
-    this.packetId = 1;
-  }
+/* ==================== Version ==================== */
+const APP_VERSION = 'v3.0';
 
-  connect() {
-    this.shouldReconnect = true;
-    try {
-      this.ws = new WebSocket(this.url, ['mqtt']);
-      this.ws.binaryType = 'arraybuffer';
+/* ==================== mqtt.js Library Loader ==================== */
+let mqttLibLoaded = false;
+let pendingMqttInit = null;
 
-      this.ws.onopen = () => { this._sendConnect(); };
-      this.ws.onmessage = (e) => { this._handleMessage(e.data); };
-      this.ws.onclose = () => {
-        this.connected = false;
-        clearInterval(this.keepAliveTimer);
-        if (this.shouldReconnect) {
-          this.onReconnect();
-          this.reconnectTimer = setTimeout(() => this.connect(), 3000);
-        } else {
-          this.onClose();
-        }
-      };
-      this.ws.onerror = () => { this.onError(); };
-    } catch (e) {
-      this.onError();
-      if (this.shouldReconnect) {
-        this.reconnectTimer = setTimeout(() => this.connect(), 3000);
-      }
-    }
-  }
-
-  _encodeRemainingLength(length) {
-    const bytes = [];
-    do {
-      let b = length % 128;
-      length = Math.floor(length / 128);
-      if (length > 0) b |= 128;
-      bytes.push(b);
-    } while (length > 0);
-    return Uint8Array.from(bytes);
-  }
-
-  _decodeRemainingLength(bytes, offset) {
-    let multiplier = 1, value = 0, index = offset;
-    do {
-      const b = bytes[index];
-      value += (b & 127) * multiplier;
-      multiplier *= 128;
-      index++;
-      if (multiplier > 128*128*128) break;
-    } while ((bytes[index-1] & 128) !== 0);
-    return { value, index };
-  }
-
-  _encodeString(str) {
-    const e = new TextEncoder();
-    const sb = e.encode(str);
-    const r = new Uint8Array(2 + sb.length);
-    r[0] = (sb.length >> 8) & 0xFF;
-    r[1] = sb.length & 0xFF;
-    r.set(sb, 2);
-    return r;
-  }
-
-  _sendConnect() {
-    const parts = [
-      this._encodeString('MQTT'),
-      new Uint8Array([0x04]),        // Protocol level 3.1.1
-      new Uint8Array([0x02]),        // Clean session
-      new Uint8Array([0x00, this.keepAlive]),
-      this._encodeString(this.clientId)
-    ];
-    const total = parts.reduce((s,p)=>s+p.length, 0);
-    const payload = new Uint8Array(total);
-    let off = 0;
-    parts.forEach(p => { payload.set(p, off); off += p.length; });
-    const rl = this._encodeRemainingLength(total);
-    const pkt = new Uint8Array(1 + rl.length + total);
-    pkt[0] = 0x10;
-    pkt.set(rl, 1);
-    pkt.set(payload, 1 + rl.length);
-    this.ws.send(pkt);
-  }
-
-  subscribe(topic) {
-    this.subscriptions.add(topic);
-    if (!this.connected) return;
-    const id = this.packetId++;
-    const parts = [
-      new Uint8Array([0x00, id & 0xFF]),  // Packet ID (incrementing)
-      this._encodeString(topic),
-      new Uint8Array([0x00])               // QoS 0
-    ];
-    const total = parts.reduce((s,p)=>s+p.length, 0);
-    const payload = new Uint8Array(total);
-    let off = 0;
-    parts.forEach(p => { payload.set(p, off); off += p.length; });
-    const rl = this._encodeRemainingLength(total);
-    const pkt = new Uint8Array(1 + rl.length + total);
-    pkt[0] = 0x82;
-    pkt.set(rl, 1);
-    pkt.set(payload, 1 + rl.length);
-    this.ws.send(pkt);
-  }
-
-  publish(topic, message, retained = false) {
-    if (!this.connected) { console.warn('MQTT not connected, cannot publish:', topic); return; }
-    console.log('MQTT publish:', topic, retained ? '(retained)' : '', message.substring(0, 80));
-    const tb = this._encodeString(topic);
-    const mb = new TextEncoder().encode(message);
-    const total = tb.length + mb.length;
-    const rl = this._encodeRemainingLength(total);
-    const pkt = new Uint8Array(1 + rl.length + total);
-    pkt[0] = 0x30 | (retained ? 0x01 : 0x00);
-    pkt.set(rl, 1);
-    pkt.set(tb, 1 + rl.length);
-    pkt.set(mb, 1 + rl.length + tb.length);
-    this.ws.send(pkt);
-  }
-
-  _handleMessage(data) {
-    const bytes = new Uint8Array(data);
-    let offset = 0;
-
-    //  Process ALL MQTT packets in this WebSocket frame (there may be multiple!)
-    while (offset + 1 < bytes.length) {
-      const ptype = (bytes[offset] >> 4) & 0x0F;
-      const rl = this._decodeRemainingLength(bytes, offset + 1);
-      const packetEnd = offset + 1 + rl.index + rl.value;
-      const start = offset + 1 + rl.index;
-
-      switch (ptype) {
-        case 2: { // CONNACK
-          this.connected = true;
-          this.keepAliveTimer = setInterval(() => {
-            if (this.connected && this.ws.readyState === WebSocket.OPEN) {
-              this.ws.send(new Uint8Array([0xC0, 0x00]));
-            }
-          }, (this.keepAlive - 5) * 1000);
-          this.subscriptions.forEach(t => this.subscribe(t));
-          this.onConnect();
-          break;
-        }
-        case 3: { // PUBLISH
-          const retained = bytes[offset] & 0x01;
-          const qos = (bytes[offset] >> 1) & 0x03;
-          const tlen = (bytes[start] << 8) | bytes[start + 1];
-          const topic = new TextDecoder().decode(bytes.slice(start + 2, start + 2 + tlen));
-          let msgStart = start + 2 + tlen;
-          //  If QoS > 0, skip packet ID (2 bytes)
-          if (qos > 0) msgStart += 2;
-          const message = new TextDecoder().decode(bytes.slice(msgStart, packetEnd));
-          this.onMessage(topic, message, retained);
-          break;
-        }
-        case 13: break; // PINGRESP
-      }
-
-      offset = packetEnd;
-    }
-  }
-
-  disconnect() {
-    this.shouldReconnect = false;
-    clearInterval(this.keepAliveTimer);
-    clearTimeout(this.reconnectTimer);
-    if (this.connected && this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(new Uint8Array([0xE0, 0x00]));
-    }
-    this.connected = false;
-    if (this.ws) this.ws.close();
-  }
+function loadMqttLib(callback) {
+  if (mqttLibLoaded || (typeof mqtt !== 'undefined')) { mqttLibLoaded = true; callback(); return; }
+  const CDNs = [
+    'https://cdn.bootcdn.net/ajax/libs/mqtt/4.3.7/mqtt.min.js',
+    'https://cdn.staticfile.net/mqtt/4.3.7/mqtt.min.js',
+    'https://cdn.jsdelivr.net/npm/mqtt@4.3.7/dist/mqtt.min.js',
+    'https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js',
+  ];
+  let i = 0;
+  const tryLoad = () => {
+    if (i >= CDNs.length) { console.error('All MQTT CDN failed'); showConnectionError(); return; }
+    const s = document.createElement('script');
+    s.src = CDNs[i];
+    s.onload = () => {
+      if (typeof mqtt !== 'undefined') {
+        mqttLibLoaded = true; console.log('mqtt.js loaded from', CDNs[i]);
+        callback();
+      } else { i++; tryLoad(); }
+    };
+    s.onerror = () => { i++; tryLoad(); };
+    document.head.appendChild(s);
+  };
+  tryLoad();
 }
 
 /* ==================== Configuration ==================== */
-// 使用单一 Broker，确保所有客户端在同一个服务器上
-// EMQX 公共 Broker（国内公司，国内可直接访问）
 const MQTT_BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
 
 //  请替换为新人的名字
@@ -969,6 +811,9 @@ function init() {
   isHost = params.get('role') !== 'guest';
   roomCode = params.get('room');
 
+  //  Set version badge
+  document.getElementById('version-badge').textContent = APP_VERSION;
+
   //  Set couple names
   document.getElementById('lobby-couple-names').textContent = `${GROOM_NAME} & ${BRIDE_NAME}`;
   document.getElementById('guest-couple-names').textContent = `${GROOM_NAME} & ${BRIDE_NAME}`;
@@ -1015,37 +860,95 @@ function connectMQTT() {
   updateConnStatus('connecting');
   showManualEnterAfter5s();
 
-  if (mqttClient) {
-    mqttClient.shouldReconnect = false;
-    try { mqttClient.disconnect(); } catch(e) {}
-  }
+  loadMqttLib(() => {
+    const clientId = (isHost ? 'host_' : 'guest_') + roomCode + '_' + Math.random().toString(16).substr(2,6);
+    console.log('Connecting to MQTT:', MQTT_BROKER_URL, 'clientId:', clientId);
 
-  mqttClient = new MiniMQTT(MQTT_BROKER_URL, {
-    clientId: (isHost ? 'host_' : 'guest_') + roomCode + '_' + Math.random().toString(16).substr(2,6),
-    keepAlive: 30,
-    onConnect: () => {
+    mqttClient = mqtt.connect(MQTT_BROKER_URL, {
+      clientId: clientId,
+      keepalive: 30,
+      clean: true,
+      reconnectPeriod: 3000,
+      connectTimeout: 10000,
+    });
+
+    mqttClient.on('connect', () => {
+      console.log('MQTT connected! Role:', isHost ? 'host' : 'guest', 'Room:', roomCode);
       if (connectTimeout) { clearTimeout(connectTimeout); connectTimeout = null; }
-      onMQTTConnect();
-    },
-    onMessage: onMQTTMessage,
-    onClose: () => {
+      updateConnStatus('connected');
+      const prefix = `wq/${roomCode}`;
+
+      //  Subscribe to topics
+      mqttClient.subscribe(`${prefix}/state`, { qos: 0 });
+      mqttClient.subscribe(`${prefix}/players`, { qos: 0 });
+
+      if (isHost) {
+        mqttClient.subscribe(`${prefix}/join`, { qos: 0 });
+        mqttClient.subscribe(`${prefix}/answer`, { qos: 0 });
+
+        //  Wait for retained state; if none in 1.5s, init lobby
+        stateTimeout = setTimeout(() => {
+          if (!hasReceivedState) {
+            try {
+              gamePhase = 'lobby';
+              currentQuestion = -1;
+              players = {};
+              answers = {};
+              showScreen('host-lobby');
+              generateQRCode();
+              publishState();
+              publishPlayers();
+            } catch(e) { console.error('Host init error:', e); }
+          }
+        }, 1500);
+      } else {
+        //  Guest: if already joined, re-publish and start heartbeat
+        if (playerName) {
+          try { publishJoin(); } catch(e) {}
+          startJoinHeartbeat();
+        }
+        stateTimeout = setTimeout(() => {
+          if (!hasReceivedState) {
+            if (playerName) {
+              showGuestScreen('guest-waiting');
+              document.getElementById('guest-waiting-name').textContent = playerName;
+            } else {
+              showGuestScreen('guest-join');
+            }
+          }
+        }, 2000);
+      }
+    });
+
+    mqttClient.on('message', (topic, payload, packet) => {
+      const message = payload.toString();
+      const retained = packet.retain || false;
+      onMQTTMessage(topic, message, retained);
+    });
+
+    mqttClient.on('offline', () => {
+      console.log('MQTT offline');
       updateConnStatus('disconnected');
       hasReceivedState = false;
-      setTimeout(() => { if (!mqttClient.connected) connectMQTT(); }, 3000);
-    },
-    onReconnect: () => { updateConnStatus('connecting'); },
-    onError: () => {}
+    });
+
+    mqttClient.on('reconnect', () => {
+      console.log('MQTT reconnecting...');
+      updateConnStatus('connecting');
+    });
+
+    mqttClient.on('error', (err) => {
+      console.error('MQTT error:', err);
+    });
+
+    //  10秒超时
+    if (connectTimeout) clearTimeout(connectTimeout);
+    connectTimeout = setTimeout(() => {
+      if (!mqttClient.connected) {
+        showConnectionError();
+      }
+    }, 12000);
   });
-
-  //  10秒超时
-  if (connectTimeout) clearTimeout(connectTimeout);
-  connectTimeout = setTimeout(() => {
-    if (!mqttClient.connected) {
-      showConnectionError();
-    }
-  }, 10000);
-
-  mqttClient.connect();
 }
 
 function showConnectionError() {
@@ -1058,7 +961,8 @@ function showConnectionError() {
         可能原因：<br>
         1. 网络环境限制 WSS 连接<br>
         2. MQTT 服务器暂时不可用<br>
-        3. 浏览器阻止了 WebSocket 连接
+        3. CDN 加载失败<br>
+        请检查浏览器控制台(F12)的日志
       </div>
       <button class="btn btn-primary" onclick="retryConnection()">重新连接</button>
     `;
@@ -1081,7 +985,6 @@ function retryConnection() {
   connectMQTT();
 }
 
-//  Show manual enter button after 5 seconds
 let manualEnterTimer = null;
 function showManualEnterAfter5s() {
   if (manualEnterTimer) clearTimeout(manualEnterTimer);
@@ -1091,7 +994,6 @@ function showManualEnterAfter5s() {
   }, 5000);
 }
 
-//  Force enter: bypass connection wait and show lobby/join directly
 function forceEnter() {
   if (isHost) {
     gamePhase = 'lobby';
@@ -1109,58 +1011,6 @@ function forceEnter() {
     } else {
       showGuestScreen('guest-join');
     }
-  }
-}
-
-function onMQTTConnect() {
-  console.log('MQTT connected! Role:', isHost ? 'host' : 'guest', 'Room:', roomCode);
-  updateConnStatus('connected');
-  const prefix = `wq/${roomCode}`;
-
-  //  Subscribe to state and players (retained)
-  mqttClient.subscribe(`${prefix}/state`);
-  mqttClient.subscribe(`${prefix}/players`);
-
-  if (isHost) {
-    //  Host subscribes to join and answer events
-    mqttClient.subscribe(`${prefix}/join`);
-    mqttClient.subscribe(`${prefix}/answer`);
-
-    //  Host: wait for retained state; if none in 1.5s, init lobby
-    stateTimeout = setTimeout(() => {
-      if (!hasReceivedState) {
-        try {
-          gamePhase = 'lobby';
-          currentQuestion = -1;
-          players = {};
-          answers = {};
-          showScreen('host-lobby');
-          generateQRCode();
-          publishState();
-          publishPlayers();
-        } catch(e) { console.error('Host init error:', e); }
-      }
-    }, 1500);
-  } else {
-    //  Guest subscribes to join topic too (to hear other joins if needed)
-    mqttClient.subscribe(`${prefix}/join`);
-
-    //  Guest: if already joined before, re-publish join and start heartbeat
-    if (playerName) {
-      try { publishJoin(); } catch(e) {}
-      startJoinHeartbeat();
-    }
-    //  Wait for retained state; if none in 2s, show waiting/join
-    stateTimeout = setTimeout(() => {
-      if (!hasReceivedState) {
-        if (playerName) {
-          showGuestScreen('guest-waiting');
-          document.getElementById('guest-waiting-name').textContent = playerName;
-        } else {
-          showGuestScreen('guest-join');
-        }
-      }
-    }, 2000);
   }
 }
 
@@ -1266,21 +1116,27 @@ function publishState() {
     currentQuestion: currentQuestion,
     questionStartTime: questionStartTime
   });
-  mqttClient.publish(`wq/${roomCode}/state`, msg, true);
+  console.log('Publishing state:', msg);
+  mqttClient.publish(`wq/${roomCode}/state`, msg, { retain: true, qos: 0 });
 }
 
 function publishPlayers() {
   const arr = Object.entries(players).map(([id, p]) => ({ id, name: p.name, score: p.score || 0 }));
-  mqttClient.publish(`wq/${roomCode}/players`, JSON.stringify(arr), true);
+  const msg = JSON.stringify(arr);
+  console.log('Publishing players:', msg);
+  mqttClient.publish(`wq/${roomCode}/players`, msg, { retain: true, qos: 0 });
 }
 
 function publishJoin() {
-  //  Non-retained join message. Guest sends this repeatedly via heartbeat.
-  mqttClient.publish(`wq/${roomCode}/join`, JSON.stringify({ id: playerId, name: playerName }));
+  const msg = JSON.stringify({ id: playerId, name: playerName });
+  console.log('Publishing join:', msg);
+  mqttClient.publish(`wq/${roomCode}/join`, msg, { qos: 0 });
 }
 
 function publishAnswer(qIndex, answerIdx) {
-  mqttClient.publish(`wq/${roomCode}/answer`, JSON.stringify({ playerId, qIndex, answer: answerIdx }));
+  const msg = JSON.stringify({ playerId, qIndex, answer: answerIdx });
+  console.log('Publishing answer:', msg);
+  mqttClient.publish(`wq/${roomCode}/answer`, msg, { qos: 0 });
 }
 
 /* ==================== Host Logic ==================== */
