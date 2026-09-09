@@ -538,6 +538,10 @@ body{
     <div class="spinner"></div>
     <div style="font-size:1.1rem;font-weight:700">正在连接服务器<span class="dot-flashing"></span></div>
     <div style="font-size:.85rem;color:#888;margin-top:8px">请确保网络畅通</div>
+    <div id="manual-enter-btn" style="display:none;margin-top:20px">
+      <button class="btn btn-secondary" onclick="forceEnter()" style="font-size:.95rem;padding:10px 28px">直接进入</button>
+      <div style="font-size:.75rem;color:#aaa;margin-top:8px">如果已显示"已连接"但仍未进入，点击此按钮</div>
+    </div>
   </div>
 </div>
 
@@ -1005,6 +1009,7 @@ let tryCount = 0;
 
 function connectMQTT() {
   updateConnStatus('connecting');
+  showManualEnterAfter5s();
   tryConnectMQTT();
 }
 
@@ -1096,43 +1101,81 @@ function retryConnection() {
       <div class="spinner"></div>
       <div style="font-size:1.1rem;font-weight:700">正在连接服务器<span class="dot-flashing"></span></div>
       <div style="font-size:.85rem;color:#888;margin-top:8px">请确保网络畅通</div>
+      <div id="manual-enter-btn" style="display:none;margin-top:20px">
+        <button class="btn btn-secondary" onclick="forceEnter()" style="font-size:.95rem;padding:10px 28px">直接进入</button>
+        <div style="font-size:.75rem;color:#aaa;margin-top:8px">如果已显示"已连接"但仍未进入，点击此按钮</div>
+      </div>
     `;
   }
   connectMQTT();
+}
+
+//  Show manual enter button after 5 seconds
+let manualEnterTimer = null;
+function showManualEnterAfter5s() {
+  if (manualEnterTimer) clearTimeout(manualEnterTimer);
+  manualEnterTimer = setTimeout(() => {
+    const btn = document.getElementById('manual-enter-btn');
+    if (btn) btn.style.display = 'block';
+  }, 5000);
+}
+
+//  Force enter: bypass connection wait and show lobby/join directly
+function forceEnter() {
+  if (isHost) {
+    gamePhase = 'lobby';
+    currentQuestion = -1;
+    players = {};
+    answers = {};
+    try { publishState(); } catch(e) {}
+    try { publishPlayers(); } catch(e) {}
+    showScreen('host-lobby');
+    generateQRCode();
+  } else {
+    if (playerName) {
+      showGuestScreen('guest-waiting');
+      document.getElementById('guest-waiting-name').textContent = playerName;
+    } else {
+      showGuestScreen('guest-join');
+    }
+  }
 }
 
 function onMQTTConnect() {
   updateConnStatus('connected');
   const prefix = `wq/${roomCode}`;
 
-  //  Everyone subscribes to state and players (retained)
+  //  Subscribe to state and players (retained)
   mqttClient.subscribe(`${prefix}/state`);
   mqttClient.subscribe(`${prefix}/players`);
 
   if (isHost) {
-    //  Host also subscribes to join and answer events
     mqttClient.subscribe(`${prefix}/join`);
     mqttClient.subscribe(`${prefix}/answer`);
 
-    //  Wait 2s for retained messages; if none, init lobby
+    //  Host: show lobby immediately, then publish state
+    //  Wait briefly for retained messages from a previous session
     stateTimeout = setTimeout(() => {
       if (!hasReceivedState) {
-        gamePhase = 'lobby';
-        currentQuestion = -1;
-        players = {};
-        answers = {};
-        publishState();
-        publishPlayers();
-        showScreen('host-lobby');
-        generateQRCode();
+        //  No previous state found — initialize fresh lobby
+        try {
+          gamePhase = 'lobby';
+          currentQuestion = -1;
+          players = {};
+          answers = {};
+          showScreen('host-lobby');
+          generateQRCode();
+          publishState();
+          publishPlayers();
+        } catch(e) { console.error('Host init error:', e); }
       }
-    }, 2000);
+    }, 1500);
   } else {
     //  Guest: if already joined before, re-publish join
     if (playerName) {
-      publishJoin();
+      try { publishJoin(); } catch(e) {}
     }
-    //  Wait for retained state; if none in 2s, show waiting
+    //  Wait for retained state; if none in 2s, show waiting/join
     stateTimeout = setTimeout(() => {
       if (!hasReceivedState) {
         if (playerName) {
@@ -1243,15 +1286,43 @@ function publishAnswer(qIndex, answerIdx) {
 
 /* ==================== Host Logic ==================== */
 function handleHostStateChange() {
+  //  Safety check: if currentQuestion is invalid, reset to lobby
+  if (currentQuestion < 0 || currentQuestion >= QUESTIONS.length) {
+    if (gamePhase !== 'lobby' && gamePhase !== 'final') {
+      //  Stale state from previous session — reset
+      gamePhase = 'lobby';
+      currentQuestion = -1;
+      players = {};
+      answers = {};
+      publishState();
+      publishPlayers();
+    }
+  }
+
   if (gamePhase === 'lobby') {
     showScreen('host-lobby');
     generateQRCode();
   } else if (gamePhase === 'question') {
-    showHostQuestion(currentQuestion, questionStartTime);
+    if (currentQuestion >= 0 && currentQuestion < QUESTIONS.length) {
+      showHostQuestion(currentQuestion, questionStartTime);
+    } else {
+      //  Invalid state, go to lobby
+      showScreen('host-lobby');
+      generateQRCode();
+    }
   } else if (gamePhase === 'reveal') {
-    showHostReveal(currentQuestion);
+    if (currentQuestion >= 0 && currentQuestion < QUESTIONS.length) {
+      showHostReveal(currentQuestion);
+    } else {
+      showScreen('host-lobby');
+      generateQRCode();
+    }
   } else if (gamePhase === 'final') {
     showHostFinal();
+  } else {
+    //  Unknown phase, go to lobby
+    showScreen('host-lobby');
+    generateQRCode();
   }
 }
 
