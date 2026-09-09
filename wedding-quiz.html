@@ -84,7 +84,7 @@ body{
 
 /* ==================== Screens ==================== */
 .screen{display:none;min-height:100vh;position:relative;z-index:1;animation:screenIn .5s ease}
-.screen.active{display:block}
+.screen.active{display:flex;flex-direction:column;align-items:center;justify-content:center}
 @keyframes screenIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
 
 /* ==================== Common Elements ==================== */
@@ -112,8 +112,7 @@ body{
 .btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
 
 /* ==================== Host - Lobby ==================== */
-#host-lobby{display:flex;align-items:center;justify-content:center;padding:24px}
-#host-lobby.active{display:flex}
+#host-lobby{padding:24px}
 .lobby-card{
   max-width:800px;width:100%;
   background:rgba(255,255,255,.95);
@@ -321,8 +320,7 @@ body{
 .stat-item .stat-num{font-weight:900;color:var(--pink);font-size:1.2rem}
 
 /* ==================== Host - Final ==================== */
-#host-final{display:flex;align-items:center;justify-content:center;padding:24px}
-#host-final.active{display:flex}
+#host-final{padding:24px}
 .final-container{max-width:700px;width:100%;text-align:center}
 .final-title{
   font-size:clamp(2rem,5vw,3rem);
@@ -506,8 +504,7 @@ body{
 @keyframes dots{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}}
 
 /* Connecting screen */
-#connecting-screen{display:flex;min-height:100vh;align-items:center;justify-content:center;position:relative;z-index:1}
-#connecting-screen.active{display:flex}
+#connecting-screen{min-height:100vh;position:relative;z-index:1}
 .connecting-card{
   text-align:center;
   background:rgba(255,255,255,.95);
@@ -1734,12 +1731,16 @@ function generateQRCode(url) {
 
 /* ==================== UI Helpers ==================== */
 function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  //  Hide ALL screens (both host and guest)
+  document.querySelectorAll('.screen, .guest-screen').forEach(s => s.classList.remove('active'));
+  //  Show only the target
   document.getElementById(id).classList.add('active');
 }
 
 function showGuestScreen(id) {
-  document.querySelectorAll('.guest-screen').forEach(s => s.classList.remove('active'));
+  //  Hide ALL screens (both host and guest)
+  document.querySelectorAll('.screen, .guest-screen').forEach(s => s.classList.remove('active'));
+  //  Show only the target
   document.getElementById(id).classList.add('active');
 }
 
